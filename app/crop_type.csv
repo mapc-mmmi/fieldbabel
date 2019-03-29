@@ -1,0 +1,7 @@
+"All", "All", "All", 0, "0101", 0, "1231"
+"Corn", "Corn", "Majs", 0, "0215", 0, "1115"
+"Spring barley", "Springbarley", "Vårbyg", 0, "0301", 0, "0901"
+"Sugar beat", "Sugarbeat", "Sukkerroer", 0, "0301", 1, "0201"
+"Spring rape", "Springrape", "Vårraps", 0, "0301", 0, "1001"
+"Winter rapeseed", "Winterrapeseed", "Vinterraps", -1, "0701", 0, "0801"
+"Winter wheat", "Winterwheat", "Vinterhvede", -1, "0815", 0, "1015"

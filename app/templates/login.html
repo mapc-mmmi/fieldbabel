@@ -1,0 +1,280 @@
+<!-- extend from base layout -->
+{% extends "base.html" %}
+
+{% block content %}
+<div class="tab">
+  <button class="tablinks" onclick="opensubpage(event, 'service')" id="defaultOpen">Service</button>
+  <button class="tablinks" onclick="opensubpage(event, 'qgis_current')">Current data</button>
+  <button class="tablinks" onclick="opensubpage(event, 'qgis_temp1')">Crop selector</button>
+  <button class="tablinks" onclick="opensubpage(event, 'qgis_temp2')">Farm info</button>
+  <button class="tablinks" onclick="opensubpage(event, 'qgis_temp3')">Job list</button>
+  <button class="tablinks" onclick="opensubpage(event, 'external_link')">External links</button>
+</div>
+
+  <div id="service" class="tabcontent">
+    <h3>Current test Sentiel-1 agriculture setup service</h3>
+    <p>Currently for testing purposes only,
+    since development is still at the experimental stage.
+    <br>
+    <br>
+    The present study aims to provide a remote sensing service
+    with weekly/daily updated measurement data, to allow researchers the ability monitor
+    and estimate crop growth parameters,
+    such as leaf area index, water content, fresh biomass,
+    dry biomass and plant height to indicate grain quality.
+    An attractive approach is the remote sensing of the agricultural
+    fields using Sentinel-1.
+    <br>
+    <img src="{{url_for('static', filename='sentinel_1_esa.png')}}" alt="Sentinel-1 ESA" height="336">
+    <br>
+    Sentinel-1 consists of a two-satellite constellation with
+    the primary objectives of surface monitoring.
+    The payload of the Sentinel-1 satellites is a Synthetic Aperture Radar (SAR)
+    in the C band spectrum that provides continuous imagery.
+    Currently, we intend to provide a service to allow researchers the ability to estimate and monitor
+    agricultural crop growth parameters using Single Look Complex (SLC), and Ground Range Detected (GRD) SAR data
+    <br>
+    <img src="{{url_for('static', filename='grd_img_examples.png')}}" alt="GRD IMAGE examples" height="303">
+    <br>
+    Based on current research combining Sentinel-1 data since seeding of the field,
+    we intend to provide a service for researchers in the agricultural domain.
+    The service will allow them the ability to monitor the full crop growth
+    by obtaining the timely information about the crop condition.
+    In this project, it is relevant to have external information about the various growth
+    stages of the broad acre crops for the better understanding the microwave
+    response of growth parameters.
+    <br>
+    <br>
+    The fieldbabel website will undergo a series of incremental changes
+    over the next several months
+    in an effort to update the current service and improve usability.
+    <br>
+    <br>
+    Please note that this is a early beta version of the fieldbabel website
+    which is still undergoing testing before its official release.
+    The website, its software and all content found on it are provided on
+    an “as is” and “as available” basis
+    <br>
+    <br>
+    Should you encounter any bugs, glitches, lack of functionality
+    or other problems on the website, please let us know immediately so we
+    can rectify these accordingly. Your help in this regard is greatly
+    appreciated.</p>
+    <!---For more information contact Martin -->
+  </div>
+
+
+
+  <div id="qgis_temp1" class="tabcontent">
+    <h3>Create Qgis project with crop and field info</h3>
+    <form action="" method="POST" name="crop">
+        {{ crop_form.hidden_tag() }}
+        <p>
+            Go to the <a href="http://geojson.io/#map=7/55.597/10.135" target="_blank">GEOJSON</a> homepage and
+            "Draw an rectangle" on the area you want to extract sentinel-1 radar data from.<br>
+            Copy the JSON syntax to the first field below.<br>
+            The video shows how the procedure is performed correctly:<br>
+            <br>
+            <br>
+            <br>
+            <br>
+            <br>
+            <br>
+            <br>
+            <br>
+            <!--<iframe width="420" height="315"
+            src="https://www.youtube.com/embed/XGSy3_Czz8k?playlist=XGSy3_Czz8k&loop=1">
+            </iframe><br>-->
+            Currently only Denmark is supported in the system.<br>
+            <br>
+            {{ crop_form.crop_type.label }}: {{ crop_form.crop_type }} {{ crop_form.season.label }}: {{ crop_form.season }}
+            <br>
+            <br>
+            Please enter a JSON polygon:<br>
+            {{ crop_form.fieldpoly(size=80) }}<br>
+            and your e-mail:<br>
+            {{ crop_form.email(size=60) }}<br>
+        </p>
+        <p>{{crop_form.crops_submit}}</p>
+    </form>
+  </div>
+
+  <div id="qgis_temp2" class="tabcontent">
+    <h3>Crop Selector</h3>
+  </div>
+
+  <div id="external_link" class="tabcontent">
+    <h3>External links</h3>
+    <p><hr></p>
+    <h4>ESA satellit links</h4>
+    <p>
+      <a href="http://www.esa.int/Our_Activities/Observing_the_Earth/Copernicus">ESA Copernicus</a>
+    <p>
+      <a href="https://scihub.copernicus.eu/">Download sentinel satelit data</a>
+    </p>
+    <p>
+      <a href="https://s2maps.eu/">Sentinel-2 cloudless</a>
+    </p>
+    <p>
+      <a href="http://www.esa.int/Our_Activities/Observing_the_Earth/Space_for_our_climate/Nearly_four_decades_of_soil_moisture_data_now_available">ESA soil moisture recodings</a><br>
+      <a href="http://www.esa-soilmoisture-cci.org/">Soil moisture data</a>
+      <a href="http://www.esa-soilmoisture-cci.org/node/145">Historical soil moisture data</a>
+    </p>
+
+    <p><hr></p>
+    <h4>Other free satellit links</h4>
+    <p>
+      <a href="https://landsat.usgs.gov/landsat-data-access">Landsat Products</a>
+    </p>
+    <p>
+      <a href="https://earthexplorer.usgs.gov/">EarthExplorer</a>
+    </p>
+    <p>
+      <a href="https://www.planet.com/pulse/free-light/">Planet labs - Free datasets</a>
+    </p>
+    <p>
+      <a href="https://earthengine.google.com">Earth Engine</a><br>
+      <a href="https://earthengine.google.com/datasets/">Earth Engine - Datasets</a>
+    </p>
+    <p>
+    <a href="http://gisgeography.com/free-satellite-imagery-data-list/">Free satellit image data list</a><br>
+    </p>
+    <p>
+      <a href="https://www.digitalglobe.com/opendata">Digitalglobe - Opendata</a>
+    </p>
+    <p>
+    <hr>
+    </p>
+    <h4>Cormecial satellit links</h4>
+    <p>
+      <a href=""></a>
+    </p>
+    <p>
+    <hr>
+    </p>
+    <h4>GIS data for Denmark</h4>
+      <p>
+        <a href="http://www.geus.dk/UK/data-maps/Pages/j200-dk.aspx">Danish Geological Info</a>
+      </p>
+      <p>
+        <a href="http://plugins.qgis.org/plugins/Kortforsyningen/">General GIS data for Denmark</a>
+      </p>
+      <p>
+        <a href="https://kortdata.fvm.dk/download/Markblokke_Marker?page=MarkerGaeldende">Current field info</a>
+      </p>
+      <p>
+        <a href="https://kortdata.fvm.dk/download/Markblokke_Marker?page=MarkerHistoriske">Historical field info</a>
+      </p>
+      <p>
+        <a href="http://www.geus.dk/UK/data-maps/Pages/default.aspx">Other DK geo infomation maps</a>
+      </p>
+    <p><hr></p>
+    <h4>Weather info</h4>
+    <p>
+      <a href="http://www.dmi.dk/vejr/arkiver/vejrarkiv/">Danish Weather Archive</a>
+    </p>
+    <p>
+      <a href="https://www.landbrugsinfo.dk/planteavl/vejret/sider/pl_jordtemperatur.aspx">DK soil temperatur(10cm dept)</a>
+    </p>
+    <p><hr></p>
+  </div>
+
+  <div id="qgis_current" class="tabcontent">
+    <h3>Get current scans from the sentinel satellits.</h3>
+    <form action="" method="POST" name="current">
+        {{ current_form.hidden_tag() }}
+        <p>
+            Go to the <a href="http://geojson.io/#map=7/55.597/10.135" target="_blank">GEOJSON</a> homepage and
+            "Draw an rectangle" on the area you want to extract sentinel-1 radar data from.<br>
+            Copy the JSON syntax to the first field below.<br>
+            The video shows how the procedure is performed correctly:<br>
+            <br>
+            <br>
+            <br>
+            <br>
+            <br>
+            <br>
+            <br>
+            <br>
+            <!--<iframe width="420" height="315"
+            src="https://www.youtube.com/embed/XGSy3_Czz8k?playlist=XGSy3_Czz8k&loop=1">
+            </iframe><br>-->
+            Currently only Denmark is supported in the system.<br>
+            <br>
+            <br>
+            Please enter a GEOJSON polygon:<br>
+            {{ current_form.fieldpoly(size=80) }}<br>
+            and your e-mail:<br>
+            {{ current_form.email(size=60) }}<br>
+        </p>
+        <p>{{ current_form.submit_current }}</p>
+    </form>
+  </div>
+
+  <div id="qgis_temp3" class="tabcontent">
+    <h3>Job list</h3>
+    <table class="table-style">
+      <thead>
+      <tr>
+        <th>Job</th>
+        <th>Request Time</th>
+        <th>Crop type</th>
+        <th>Season</th>
+        <th>Start Pose</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for request in requests %}
+      <tr>
+        <td>{{request.id}}</td>
+        <td>{{request.timestamp.strftime("%Y-%m-%d %H:%M:%S")}}</td>
+        <td>{{request.crop_type }}</td>
+        <td>{{request.season}}</td>
+        <td>{{request.body[190:280]}}</td> <!--+" , "+request.body[370:457]}} </td>-->
+      </tr>
+    {% endfor %}
+    </tbody>
+    </table>
+    <h3>Current jobs done!</h3>
+    <table class="table-style">
+      <thead>
+      <tr>
+        <th>Job</th>
+        <th>Request Time</th>
+        <th>Crop type</th>
+        <th>Start Pose</th>
+        <th>Download link</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for request in peformed %}
+      <tr>
+        <td>{{request.id}}</td>
+        <td>{{request.timestamp.strftime("%Y-%m-%d %H:%M:%S") }}  </td>
+        <td>{{request.crop_type}}</td>
+        <td>{{request.body[190:280]}}</td>
+        <td><a href={{request.link}} target="_blank" rel="noopener">download</a></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+    </table>
+  </div>
+
+  <script>
+    function opensubpage(evt, pageName) {
+        var i, tabcontent, tablinks;
+        tabcontent = document.getElementsByClassName("tabcontent");
+        for (i = 0; i < tabcontent.length; i++) {
+            tabcontent[i].style.display = "none";
+        }
+        tablinks = document.getElementsByClassName("tablinks");
+        for (i = 0; i < tablinks.length; i++) {
+            tablinks[i].className = tablinks[i].className.replace(" active", "");
+        }
+        document.getElementById(pageName).style.display = "block";
+        evt.currentTarget.className += " active";
+    }
+    document.getElementById("defaultOpen").click();
+  </script>
+
+{% endblock %}

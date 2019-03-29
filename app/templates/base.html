@@ -1,0 +1,94 @@
+<html>
+  <head>
+    {% if title %}
+    <title>{{ title }} - fieldbabel</title>
+    {% else %}
+    <title>fieldbabel</title>
+    {% endif %}
+    <style type="text/css">
+    body {font-family: "Lato", sans-serif;}
+
+    /* Style the tab */
+    div.tab {
+        overflow: hidden;
+        border: 1px solid #ccc;
+        background-color: #f1f1f1;
+    }
+
+    /* Style the buttons inside the tab */
+    div.tab button {
+        background-color: inherit;
+        float: left;
+        border: none;
+        outline: none;
+        cursor: pointer;
+        padding: 14px 16px;
+        transition: 0.3s;
+        font-size: 17px;
+    }
+
+    table.table-style {
+        font-family: verdana, arial, sans-serif;
+        font-size: 12px;
+        color: #333333;
+        border-width: 1px;
+        border-color: #3A3A3A;
+        border-collapse: collapse;
+    }
+    table.table-style th {
+        border-width: 1px;
+        padding: 8px;
+        border-style: solid;
+        border-color: #517994;
+        background-color: #B2CFD8;
+    }
+    table.table-style tr:hover td {
+        cursor: pointer;
+    }
+    table.table-style tr:nth-child(even) td{
+        background-color: #F7CFCF;
+    }
+    table.table-style td {
+        border-width: 1px;
+        padding: 8px;
+        border-style: solid;
+        border-color: #FFA6A6;
+        background-color: #ffffff;
+    }
+
+    /* Change background color of buttons on hover */
+    div.tab button:hover {
+        background-color: #ddd;
+    }
+
+    /* Create an active/current tablink class */
+    div.tab button.active {
+        background-color: #ccc;
+    }
+
+    /* Style the tab content */
+    .tabcontent {
+        display: none;
+        padding: 6px 12px;
+        border: 1px solid #ccc;
+        border-top: none;
+    }
+    p{
+        width:600px;
+        word-wrap:break-word;
+    }
+    </style>
+  </head>
+  <body>
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <ul>
+        {% for message in messages %}
+            <li>{{ message }} </li>
+        {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </body>
+</html>
