@@ -1,0 +1,12 @@
+To: {to_email}
+From: Fieldbabel<fieldbabel@eng.au.dk>
+Subject: Processing Done (Do not reply)
+
+Dear user
+
+Your request with ID {request_id} have finished.
+You can download the data using the link below:
+
+https://fieldbabel.eng.au.dk/{download_link}
+
+

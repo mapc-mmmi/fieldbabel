@@ -1,0 +1,15 @@
+To: {to_email}
+From: Fieldbabel<fieldbabel@eng.au.dk>
+Subject: Request Receipt (Do not reply)
+
+Hello!
+
+This is an automated email so please do not reply, as we won't actually see the response.
+If you have a question, concern or problem, please send a separate message to mpc@eng.au.dk and let us know.
+
+This email confirms that the request for processed sentinel data have been given ID {request_id}.
+We cannot determine exact delivery time, since this depends on current number of jobs set for processing.
+You will be able to find the processing queue under joblist on fieldbabel.eng.au.dk homepage.
+
+We will send you a download link when the processing is done.
+

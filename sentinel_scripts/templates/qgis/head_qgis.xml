@@ -1,0 +1,8 @@
+<!DOCTYPE qgis PUBLIC 'http://mrcc.com/qgis.dtd' 'SYSTEM'>
+<qgis projectname="" version="2.8.6-Wien">
+  <title>{qgis_title}</title>
+  <layer-tree-group expanded="1" checked="Qt::Checked" name="">
+    <customproperties/>
+    {tree_layers}
+  </layer-tree-group>
+  <relations/>

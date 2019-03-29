@@ -1,0 +1,43 @@
+<properties>
+  <SpatialRefSys>
+    <ProjectCRSProj4String type="QString">+proj=longlat +datum=WGS84 +no_defs</ProjectCRSProj4String>
+    <ProjectCrs type="QString">EPSG:4326</ProjectCrs>
+    <ProjectCRSID type="int">3452</ProjectCRSID>
+  </SpatialRefSys>
+  <Paths>
+    <Absolute type="bool">false</Absolute>
+  </Paths>
+  <Gui>
+    <SelectionColorBluePart type="int">0</SelectionColorBluePart>
+    <CanvasColorGreenPart type="int">255</CanvasColorGreenPart>
+    <CanvasColorRedPart type="int">255</CanvasColorRedPart>
+    <SelectionColorRedPart type="int">255</SelectionColorRedPart>
+    <SelectionColorAlphaPart type="int">255</SelectionColorAlphaPart>
+    <SelectionColorGreenPart type="int">255</SelectionColorGreenPart>
+    <CanvasColorBluePart type="int">255</CanvasColorBluePart>
+  </Gui>
+  <Digitizing>
+    <DefaultSnapToleranceUnit type="int">2</DefaultSnapToleranceUnit>
+    <SnappingMode type="QString">current_layer</SnappingMode>
+    <AvoidIntersectionsList type="QStringList"/>
+    <LayerSnappingToleranceUnitList type="QStringList">
+      <value>2</value>
+    </LayerSnappingToleranceUnitList>
+    <LayerSnapToList type="QStringList">
+      <value>to_vertex</value>
+    </LayerSnapToList>
+    <DefaultSnapType type="QString">off</DefaultSnapType>
+    <DefaultSnapTolerance type="double">0</DefaultSnapTolerance>
+    <LayerSnappingToleranceList type="QStringList">
+      <value>0.000000</value>
+    </LayerSnappingToleranceList>
+  </Digitizing>
+  <PositionPrecision>
+    <DecimalPlaces type="int">2</DecimalPlaces>
+    <Automatic type="bool">true</Automatic>
+  </PositionPrecision>
+  <Legend>
+    <filterByMap type="bool">false</filterByMap>
+  </Legend>
+</properties>
+</qgis>

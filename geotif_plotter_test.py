@@ -1,0 +1,492 @@
+#!/usr/bin/env python
+import time
+import datetime
+import os
+import sys
+import glob
+import csv
+import subprocess
+from osgeo import gdal
+import utm
+import numpy
+import shapefile
+import matplotlib.pyplot as plt
+from datetime import datetime
+import matplotlib.dates as mdates
+import matplotlib.patches as patches
+from shapely.geometry import Point, Polygon, MultiPolygon
+from descartes.patch import PolygonPatch
+import xml.etree.ElementTree as ET
+import json
+
+COLOR = {
+    True:  '#6699cc',
+    False: '#ff3333'
+    }
+
+BLUE =   '#6699cc'
+YELLOW = '#ffcc33'
+GREEN =  '#339933'
+RED =  '#FF0000'
+GRAY =   '#999999'
+
+def v_color(ob):
+    return COLOR[ob.is_valid]
+
+def plot_coords(ax, ob):
+    x, y = ob.xy
+    ax.plot(x, y, 'o', color=GRAY, zorder=1)
+
+def plot_zone(ax, ob):
+    x, y = ob.xy
+    ax.plot(x, y, '--', color=BLUE, zorder=1)
+
+def pnpoly(vertx, verty, testx, testy):
+    c = False
+    j = len(vertx)-1
+    for i in range(0,len(vertx)):
+        if( ((verty[i]>testy) != (verty[j]>testy)) and (testx < (vertx[j]-vertx[i]) * (testy-verty[i]) / (verty[j]-verty[i]) + vertx[i]) ):
+            c = (not c)
+        j=i
+    return c
+
+def readgeotifbandvalues(rasterfn,utm_x,utm_y):
+    raster = gdal.Open(rasterfn)
+    geotransform = raster.GetGeoTransform()
+    originX = geotransform[0]
+    originY = geotransform[3]
+    pixelWidth = geotransform[1]
+    pixelHeight = geotransform[5]
+    p_x = int((utm_x-originX)/pixelWidth)
+    p_y = int((utm_y-originY)/pixelHeight)
+    databands = []
+    for i in range(1,4):
+        try:
+            srcband = raster.GetRasterBand(i)
+        except RuntimeError, e:
+            print 'No band %i found' % i
+            print e
+            sys.exit(1)
+        dataraster = srcband.ReadAsArray(p_x,p_y,1,1).astype(numpy.float)
+        databands.append((dataraster[0])[0])
+
+    return databands
+
+class Pdfreport:
+    def __init__(self, folder_name):
+        self.main_folder = "sentinel_output/"+folder_name +'/'
+        self.filepath_geotifs = self.main_folder+"geotifs/"
+        self.filepath_field_data = self.main_folder+"field_data/"
+        self.plot_folder = self.main_folder+"farm_report/"
+        self.shapes_found = False
+        self.current_report_name = ''
+        self.current_journal_num = ''
+        self.current_field_num = ''
+
+        if not os.path.exists(self.plot_folder):
+            os.makedirs(self.plot_folder)
+
+        self.minimum_geo_size = 8 # number of hectares
+        self.geostep = 10
+        self.sample_gap = 5
+
+        field_shp = ''
+        field_dbf = ''
+        field_data_files = next(os.walk(self.filepath_field_data))[2]
+        for field_data in field_data_files:
+            if(field_data[-4:]=='.shp'):
+                field_shp = field_data
+            if(field_data[-4:]=='.dbf'):
+                field_dbf = field_data
+
+        if(field_shp != '' and field_shp != ''):
+            myshp = open(self.filepath_field_data+field_shp, "rb")
+            mydbf = open(self.filepath_field_data+field_dbf, "rb")
+            self.sf = shapefile.Reader(shp=myshp, dbf=mydbf)
+            self.shapes_found = True
+            self.fig = plt.figure(1, figsize=(16,9),dpi=150)
+
+    def add_field_section(self, field_num, crop_type, record):
+        self.report_pdf.write("\n \\newpage \n")
+        self.report_pdf.write("   \section{"+str(field_num).decode('ascii', 'ignore')+" "+ crop_type.decode('ascii', 'ignore')+"}\n")
+        self.report_pdf.write("\n   \subsection{Field Info}\n\n")
+        self.report_pdf.write("   \\begin{itemize}\n")
+        self.report_pdf.write("      \item Journal number: " +str(record[0])+"\n")
+        self.report_pdf.write("      \item Field number: " +str(record[1])+"\n")
+        self.report_pdf.write("      \item Geometric size: " +str(record[2])+" ha"+"\n")
+        self.report_pdf.write("      \item Agriculture funding: " +str(record[3])+"\n")
+        self.report_pdf.write("      \item Crop type: " +str(record[4]).decode('ascii', 'ignore')+"\n")
+        self.report_pdf.write("      \item Crop type value: " +str(record[5])+"\n")
+        self.report_pdf.write("   \\end{itemize}\n\n")
+        self.report_pdf.flush()
+
+    def create_pdf_rep(self, journal_num, minimum_geo_size):
+        self.current_journal_num = journal_num
+        self.current_report_name = "farm_report_"+journal_num+".tex"
+        self.report_pdf = open(self.plot_folder + self.current_report_name,'w')
+        i = open("template/report_header.tex",'r')
+        data = (i.read())
+        self.report_pdf.write((data%journal_num))
+        self.report_pdf.flush()
+        self.report_pdf.write("\\clearpage\n")
+        self.report_pdf.write("\section{Introduction}\n\n")
+        self.report_pdf.write("     \subsection{Field overview}\n\n")
+        [image_name, image_name_bar] = self.create_farm_plot(journal_num, minimum_geo_size)
+        i = open("template/norm_figure.tex",'r')
+        caption = "Fields that will be analyzed in this autogenerated report."
+        data = (i.read()) % (image_name, caption, image_name[:-4])
+        self.report_pdf.write(data)
+        self.report_pdf.flush()
+        i = open("template/norm_figure.tex",'r')
+        caption = "Distributions of analysed fields for this specific farm."
+        data = (i.read()) % (image_name_bar, caption, image_name_bar[:-4])
+        self.report_pdf.write(data)
+        self.report_pdf.flush()
+
+    def calc_time_range(self, crop_type):
+        Time_plot = []
+        for j in range (0,1):
+            for i in range (1,13):
+                y = 2000+int(self.current_journal_num[0:2])+j
+                time = mdates.date2num(datetime.strptime(str(y)+"%02d"%i+'01','%Y%m%d'))
+                Time_plot.append(time)
+                time = mdates.date2num(datetime.strptime(str(y)+"%02d"%i+'15','%Y%m%d'))
+                Time_plot.append(time)
+
+        return Time_plot
+
+    def plot_field_sample_area(self, shape, record, polygon, crop_type):
+        exterior_pol = Polygon(polygon.exterior.coords)
+        sample_poly = exterior_pol.buffer(-1*self.sample_gap*self.geostep)
+
+        if sample_poly.type == 'Polygon':
+            sample_list = list(sample_poly.exterior.coords)
+        else:
+            exterior_pol = Polygon(polygon.exterior.coords).buffer(self.sample_gap*self.geostep)
+            sample_poly = exterior_pol.buffer(-2*self.sample_gap*self.geostep)
+            if sample_poly.type == 'Polygon':
+                sample_list = list(sample_poly.exterior.coords)
+            else:
+                sample_list = shape.points
+        x_sample_l = [i[0] for i in sample_list[:]]
+        y_sample_l = [i[1] for i in sample_list[:]]
+
+        print crop_type.decode('utf-8', 'ignore')
+        self.add_field_section(self.current_field_num, crop_type, record)
+
+        self.report_pdf.write("       \subsection{Field Sampling}\n\n")
+
+        image_name = self.current_journal_num+"_"+self.current_field_num+'_sampling'+'.png'
+        fig = plt.figure(1, figsize=(16,8),dpi=150)
+        #figsize=(20,10)
+        plt.clf()
+        ax = fig.add_subplot(111)
+        plot_coords(ax, polygon.exterior)
+        patch = PolygonPatch(polygon, fc=GRAY, ec=GRAY, alpha=0.5, zorder=2)
+        ax.add_patch(patch)
+        patch2 = PolygonPatch(sample_poly, fc=GREEN, ec=GREEN, alpha=0.5, zorder=2)
+        ax.add_patch(patch2)
+        for x_sp in xrange(int(shape.bbox[0]),int(shape.bbox[2]),self.sample_gap*self.geostep):
+            for y_sp in xrange(int(shape.bbox[1]),int(shape.bbox[3]),self.sample_gap*self.geostep):
+                if(pnpoly(x_sample_l, y_sample_l, x_sp,y_sp)):
+                    rec_patch = patches.Rectangle((x_sp-int(self.geostep/2),y_sp-int(self.geostep/2)), self.geostep, self.geostep, fc=BLUE, ec=BLUE, alpha=0.9, zorder=2)
+                    ax.add_patch(rec_patch)
+                    #rep_pl, = ax.plot(x_sp,y_sp,'o',color=BLUE)
+
+        plt.axis('equal')
+        ax.set_title(self.current_field_num+' - ' +crop_type.decode('utf-8', 'ignore')+ ' - sample method:  '+str(self.sample_gap*self.geostep)+'m grid')
+        ax.set_xlabel('UTM meter - Easting')
+        ax.set_ylabel('UTM meter - Northing')
+        fig.tight_layout()
+        plt.savefig(self.plot_folder+image_name)
+
+        i = open("template/norm_figure.tex",'r')
+        caption = "Field: "+str(self.current_field_num)+' automated sample area'
+        data = (i.read()) % (image_name, caption, image_name[:-4])
+        self.report_pdf.write(data)
+
+        return [x_sample_l, y_sample_l]
+
+
+    def plot_sar_variables(self, Time_a_a, Time_d_a, Time_a_b, Time_d_b, a_m_a, d_m_a, a_m_b, d_m_b, crop_type, name):
+        image_name = self.current_journal_num+"_"+self.current_field_num+'_'+name+'.png'
+        Time_plot = self.calc_time_range(crop_type)
+
+        fig = plt.figure(1, figsize=(16,8),dpi=300)
+        plt.clf()
+        ax = fig.add_subplot(111)
+        caption = self.current_field_num+' - ' +crop_type.decode('utf-8', 'ignore')+ ' - ' + name +' - sample method: grid'
+        ax.set_title(caption)
+
+        s1_a_a, = plt.plot(Time_a_a,a_m_a,'r-o')
+        s1_a_d, = plt.plot(Time_d_a,d_m_a,'b-x')
+        s1_b_a, = plt.plot(Time_a_b,a_m_b,'g--')
+        s1_b_d, = plt.plot(Time_d_b,d_m_b,'y-x')
+        ax.set_xticks(Time_plot) # Tickmark + label at every plotted point
+        ax.grid(True)
+        ax.legend([s1_a_a,s1_a_d,s1_b_a,s1_b_d],['Sentinel-1a ascending','Sentinel-1a decending','Sentinel-1b ascending','Sentinel-1b decending'],loc=2)
+
+        ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
+        # Format the x-axis for dates (label formatting, rotation)
+        fig.autofmt_xdate(rotation=45)
+        fig.tight_layout()
+        plt.savefig(self.plot_folder+image_name)
+
+        i = open("template/norm_figure.tex",'r')
+        caption = "Mean value of SAR processed variable: "+name
+        data = (i.read()) % (image_name, caption, image_name[:-4])
+        self.report_pdf.write(data)
+
+        with open(self.plot_folder+image_name[:-4]+'.csv', 'wb') as csvfile:
+            csvwriter = csv.writer(csvfile, delimiter=',')
+            csvwriter.writerow(['time-asending-s1a', 'value-asending-s1a', 'time-desending-s1a', 'value-desending-s1a','time-asending-s1b', 'value-asending-s1b','time-desending-s1b', 'value-desending-s1b'])
+            if len(Time_a_a)>=len(Time_a_b):
+                space_len = len(Time_a_a)
+            else:
+                space_len = len(Time_a_b)
+
+            for i in range(space_len):
+                if(i< len(Time_a_a)) and (i< len(Time_a_b)):
+                    if(i< len(Time_d_b)):
+                        csvwriter.writerow([Time_a_a[i],a_m_a[i],Time_d_a[i],d_m_a[i],Time_a_b[i],a_m_b[i],Time_d_b[i],d_m_b[i]])
+                    else:
+                        csvwriter.writerow([Time_a_a[i],a_m_a[i],Time_d_a[i],d_m_a[i],Time_a_b[i],a_m_b[i]])
+                elif(i< len(Time_a_a) and i< len(Time_d_a)):
+                    csvwriter.writerow([Time_a_a[i],a_m_a[i],Time_d_a[i],d_m_a[i]])
+
+                elif(i< len(Time_a_b) and i< len(Time_d_b)):
+                    csvwriter.writerow(['','','','',Time_a_b[i],a_m_b[i],Time_d_b[i],d_m_b[i]])
+
+    def process_farm_fields(self, journal_num, minimum_geo_size):
+        filenames = next(os.walk(self.filepath_geotifs))[2]
+        filenames.sort()
+
+
+        meta_info = []
+        for string in filenames:
+            if ".tif" == string[-4:]:
+                time = mdates.date2num(datetime.strptime(string[0:15],'%Y%m%dT%H%M%S'))
+                xml_data = self.filepath_geotifs + string[0:-4]+'.xml'
+                tree = ET.parse(xml_data)
+                root = tree.getroot()
+                for attrib in (root.find('Abstracted_Metadata')).findall('attrib'):
+                    name = attrib.get('name')
+                    if(name == 'MISSION'):
+                        sat_mis = attrib.get('value')
+                    elif(name == 'PASS'):
+                        sat_pass = attrib.get('value')
+                #"orbit_cycle"
+                # REL_ORBIT"
+                # "ABS_ORBIT"
+                # "incidence_near"
+                # "incidence_far"
+                # "slice_num"
+
+                meta_info.append([time, sat_mis[10], sat_pass[0]])
+
+        for shaperec in self.sf.iterShapeRecords():
+            if(shaperec.record[0]  == journal_num and int((shaperec.record[2]).partition(',')[0]) > minimum_geo_size):
+                shape = shaperec.shape
+                record = shaperec.record
+                field_num = shaperec.record[1]
+                self.current_field_num = field_num
+                crop_type = shaperec.record[4]
+                polygon = Polygon(shape.points)
+
+                [x_sample_l, y_sample_l] = self.plot_field_sample_area(shape, record, polygon,crop_type)
+
+                R_g = []
+                G_g = []
+                B_g = []
+                Valid_data = []
+
+
+                count = 0
+                for string in filenames:
+                    if ".tif" == string[-4:]:
+                        v_d = True
+                        count = count +1
+                        R_temp = []
+                        G_temp = []
+                        B_temp = []
+                        for x_sp in xrange(int(shape.bbox[0]+self.geostep),int(shape.bbox[2]-self.geostep),self.sample_gap*self.geostep):
+                         for y_sp in xrange(int(shape.bbox[1]+self.geostep),int(shape.bbox[3]-self.geostep),self.sample_gap*self.geostep):
+                             if(pnpoly(x_sample_l, y_sample_l, x_sp,y_sp)):
+                                 [r, g, b]= readgeotifbandvalues(self.filepath_geotifs + string,x_sp,y_sp)
+                                 if(r != 0 and g != 0):
+                                     R_temp.append(r)
+                                     G_temp.append(g)
+                                     B_temp.append(b)
+                                 else:
+                                     v_d = False
+
+                        R_g.append(R_temp[:])
+                        G_g.append(G_temp[:])
+                        B_g.append(B_temp[:])
+                        Valid_data.append(v_d)
+
+                R_g_a_m_a = []
+                R_g_d_m_a = []
+                R_g_a_m_b = []
+                R_g_d_m_b = []
+                G_g_a_m_a = []
+                G_g_d_m_a = []
+                G_g_a_m_b = []
+                G_g_d_m_b = []
+                B_g_a_m_a = []
+                B_g_d_m_a = []
+                B_g_a_m_b = []
+                B_g_d_m_b = []
+                Time_a_a = []
+                Time_a_b = []
+                Time_d_a = []
+                Time_d_b = []
+                for variants in range(0,len(meta_info)):
+                    if(Valid_data[variants]):
+                        if((meta_info[variants])[2]=='A'):
+                            if((meta_info[variants])[1]=='A'):
+                                R_g_a_m_a.append(numpy.mean(R_g[variants]))
+                                G_g_a_m_a.append(numpy.mean(G_g[variants]))
+                                B_g_a_m_a.append(numpy.mean(B_g[variants]))
+                                Time_a_a.append((meta_info[variants])[0])
+                            elif((meta_info[variants])[1]=='B'):
+                                R_g_a_m_b.append(numpy.mean(R_g[variants]))
+                                G_g_a_m_b.append(numpy.mean(G_g[variants]))
+                                B_g_a_m_b.append(numpy.mean(B_g[variants]))
+                                Time_a_b.append((meta_info[variants])[0])
+                        elif((meta_info[variants])[2]=='D'):
+                            if((meta_info[variants])[1]=='A'):
+                                R_g_d_m_a.append(numpy.mean(R_g[variants]))
+                                G_g_d_m_a.append(numpy.mean(G_g[variants]))
+                                B_g_d_m_a.append(numpy.mean(B_g[variants]))
+                                Time_d_a.append((meta_info[variants])[0])
+                            elif((meta_info[variants])[1]=='B'):
+                                R_g_d_m_b.append(numpy.mean(R_g[variants]))
+                                G_g_d_m_b.append(numpy.mean(G_g[variants]))
+                                B_g_d_m_b.append(numpy.mean(B_g[variants]))
+                                Time_d_b.append((meta_info[variants])[0])
+
+                self.report_pdf.write("\\clearpage\n")
+                self.report_pdf.write("\n    \subsection{Grid samples sorted by recoding type}\n\n")
+
+                self.plot_sar_variables(Time_a_a, Time_d_a, Time_a_b, Time_d_b, R_g_a_m_a, R_g_d_m_a, R_g_a_m_b, R_g_d_m_b, crop_type, 'variable1') #'VV'
+                self.plot_sar_variables(Time_a_a, Time_d_a, Time_a_b, Time_d_b, G_g_a_m_a, G_g_d_m_a, G_g_a_m_b, G_g_d_m_b, crop_type, 'variable2') #'VH'
+                self.plot_sar_variables(Time_a_a, Time_d_a, Time_a_b, Time_d_b, B_g_a_m_a, B_g_d_m_a, B_g_a_m_b, B_g_d_m_b, crop_type, 'variable3')
+
+
+    def finish_pdf_rep(self):
+        self.report_pdf.write("\end{document}\n")
+        self.report_pdf.close()
+        filenames = next(os.walk(self.plot_folder))[2]
+        filenames.sort()
+        for string in filenames:
+            if ".aux" == string[-4:] or ".log" == string[-4:] or ".toc" == string[-4:]:
+                os.remove(self.plot_folder+string)
+        command = 'pdflatex ' +self.current_report_name
+        print command
+        m = 0
+        while(m<5):
+            print m
+            p = subprocess.Popen(command,stdout=subprocess.PIPE, shell=True, cwd=self.plot_folder)
+            (output, err) = p.communicate()
+            m=m+1
+        filenames = next(os.walk(self.plot_folder))[2]
+        filenames.sort()
+        for string in filenames:
+            if ".aux" == string[-4:] or ".log" == string[-4:] or ".toc" == string[-4:] or ".tex" == string[-4:]:
+                os.remove(self.plot_folder+string)
+
+
+    def create_farm_plot(self, journal_num, minimum_geo_size):
+            self.fig = plt.figure(1, figsize=(16,9),dpi=150)
+            plt.clf()
+            ax = self.fig.add_subplot(111)
+            m = 1
+            crop_types = []
+            not_analyzed = False
+            analyzed = False
+            for shaperec in self.sf.iterShapeRecords():
+                if(shaperec.record[0]  == journal_num):
+                    shape = shaperec.shape
+                    field_num = shaperec.record[1]
+                    crop_type = shaperec.record[4]
+                    polygon = Polygon(shape.points)
+                    plot_zone(ax, polygon.exterior)
+                    x_field_l = [i[0] for i in shape.points[:]]
+                    y_field_l = [i[1] for i in shape.points[:]]
+                    centroid = (sum(x_field_l) / len(x_field_l), sum(y_field_l) / len(x_field_l))
+                    try:
+                        rep_point = polygon.representative_point()
+                    except ValueError:
+                        rep_point = Point([centroid[0], centroid[1]])
+                        rep_point_calc = False
+                    if(int((shaperec.record[2]).partition(',')[0]) > minimum_geo_size):
+                        analyzed = True
+                        m = m + 1
+                        patch1 = PolygonPatch(polygon, fc=GRAY, ec=GRAY, alpha=0.5, zorder=2)
+                        ax.add_patch(patch1)
+                        ax.text(rep_point.x, rep_point.y,m,color='b')
+
+                        found_crop = False
+                        for nj in range(0,len(crop_types)):
+                            if((crop_types[nj])[0] == crop_type):
+                                found_crop = True
+                                (crop_types[nj])[1] = (crop_types[nj])[1]+1
+                        if(not found_crop):
+                            crop_types.append([crop_type, 1])
+                    else:
+                        not_analyzed = True
+                        patch2 = PolygonPatch(polygon, fc=RED, ec=RED, alpha=0.5, zorder=2)
+                        ax.add_patch(patch2)
+
+            if(analyzed and not_analyzed):
+                ax.legend([patch1,patch2],['Analyzed field areas','field areas <'+ str(minimum_geo_size)+ 'ha'],loc=2)
+            elif(analyzed):
+                ax.legend([patch1],['Analyzed field areas'],loc=2)
+            elif(not_analyzed):
+                ax.legend([patch2],['field areas <'+ str(minimum_geo_size)+ 'ha'],loc=2)
+
+            ax.set_xlabel('UTM meter - Easting')
+            ax.set_ylabel('UTM meter - Northing')
+            ax.set_title("Fields overview: "+journal_num)
+            plt.axis('equal')
+            self.fig.tight_layout()
+            image_name = journal_num+'_fields'  + '.png'
+            plt.savefig(self.plot_folder+image_name)
+
+            self.fig = plt.figure(1, figsize=(16,7),dpi=150)
+            plt.clf()
+            image_name_bar = journal_num+'_fields_analyzed_barplot'  + '.png'
+            objects = []
+            value = []
+
+            for i in range(0,len(crop_types)):
+                objects.append(((crop_types[i])[0]).decode('utf-8', 'ignore'))
+                value.append(int((crop_types[i])[1]))
+
+            y_pos = numpy.arange(len(objects))
+
+            plt.bar(y_pos, value, align='center', fc=BLUE, alpha=0.5, zorder=2)
+            plt.xticks(y_pos, objects, fontsize=16)
+            plt.ylabel('Number of fields', fontsize=16)
+            plt.title('Types of analysed fields', fontsize=16)
+            self.fig.tight_layout()
+            plt.savefig(self.plot_folder+image_name_bar)
+
+            return [image_name, image_name_bar]
+
+
+if __name__ == '__main__':
+
+
+    pdf_rep = Pdfreport('20180118191808_41')
+    pdf_rep.create_pdf_rep('16-0053917',8)
+    pdf_rep.process_farm_fields('16-0053917',8)
+    pdf_rep.finish_pdf_rep()
+
+    #pdf_rep = Pdfreport('20180111184245_35')
+    #pdf_rep.create_pdf_rep('16-0140924',8)
+    #pdf_rep.process_farm_fields('16-0140924',8)
+    #pdf_rep.finish_pdf_rep()
+
+    sys.exit(0)

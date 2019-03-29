@@ -1,0 +1,12 @@
+To: n.teimouri@eng.au.dk
+From: Fieldbabel<fieldbabel@eng.au.dk>
+Subject: Processing Done (Do not reply)
+
+Dear user
+
+Your request with ID 239 have finished.
+You can download the data using the link below:
+
+https://fieldbabel.eng.au.dk/sentinel_output/20190328103044_239.zip
+
+
